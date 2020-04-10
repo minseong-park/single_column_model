@@ -78,9 +78,9 @@ end do
 ;=============== Drawing ================
 
 
-w1 = gsn_open_wks("png", "PDF"     )
-w2 = gsn_open_wks("png", "N"       )
-w3 = gsn_open_wks("png", "dN_dlnr" )
+w1 = gsn_open_wks("x11", "PDF"     )
+w2 = gsn_open_wks("x11", "N"       )
+w3 = gsn_open_wks("x11", "dN_dlnr" )
 
 
 res1 = True
