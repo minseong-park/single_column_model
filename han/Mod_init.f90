@@ -3,19 +3,87 @@ MODULE Mod_init
   USE Mod_global
 
   IMPLICIT NONE
+  REAL, PARAMETER     :: Rd = 287.       !!! Rd = 287 J/(kg*K); J = N*m = (kg*m/s^2)*m
+  REAL, PARAMETER     :: Cp = 1005.      !!! Cp = 1005.J/(kg*K)
+  REAL, PARAMETER     :: g = 9.8         !!! unit = m/s
+  REAL, PARAMETER     :: pi = 4*ATAN(1.) !!! pi = 3.141591 
 
     CONTAINS
 
-    ! SUBROUTINE Sub_Cal_P 
-    !   IF (it = 0) THEN 
-    !     CALL Sub_read_T
-    !     CALL Sub_read_qv
-    !   ELSE
-    !  
-    !     CALL hydrostatic_eq !! sub?? function?? need discussion    
-    !
-    !   ENDIF
-    ! END SUBROUTINE Sub_Cal_P 
+     SUBROUTINE Sub_Cal_P(change_option, nz, sfc_p, Temp, dz, dp, dlnp, p, density)
+
+       IMPLICIT NONE
+       INTEGER,             INTENT(IN)    :: change_option, &
+                                           !! 1 = from P to Z
+                                           !! 2 = from Z to P
+                                           nz
+       REAL,                INTENT(IN)    :: sfc_p
+       REAL, DIMENSION(nz), INTENT(IN)    :: Temp
+       REAL, DIMENSION(nz), INTENT(OUT)   :: dlnp, & 
+                                           p,    & !!! unit = kg/(m*s^2)  = Pa
+                                           density !! kg/m^3
+       REAL, DIMENSION(nz), INTENT(INOUT) :: dz, dp
+       !! local value
+       REAL, DIMENSION(nz) :: cal_dz    !!! 
+       INTEGER :: iz 
+ 
+       SELECT CASE(change_option)
+         CASE(1)
+ 
+           dlnp = -1.*g*dz/(Rd*Temp) 
+
+           p(1) = exp(dlnp(1) + log(sfc_p)) 
+           DO iz = 2, nz
+             p(iz) = exp(dlnp(iz) + log(p(iz-1))) 
+           ENDDO
+
+           density = p/(Rd*Temp)
+
+           dp = p*dlnp
+  
+          CASE(2)
+
+            dz = -1*dp/(density*g)
+
+          CASE DEFAULT
+            PRINT*, 'please select option'
+            PRINT*, '1 : from P to Z     '
+            PRINT*, '2 : from Z to P     '
+       END SELECT
+!
+!       DO iz = 1, nz
+!         print*, dz(iz),dlnp(iz), p(iz)/100., density(iz), cal_dz(iz) 
+!       ENDDO
+     END SUBROUTINE Sub_Cal_P 
+
+    !!---------------------------------------------!!
+    !!---------------------------------------------!!
+    SUBROUTINE Sub_Cal_potental_Temp(change_option, sfc_p, p, T, theta)
+
+      IMPLICIT NONE
+      INTEGER,             INTENT(IN)     :: change_option
+                                          !! 1 = from T to theta
+                                          !! 2 = from theta to T
+      REAL,                INTENT(IN)     :: sfc_p
+      REAL, DIMENSION(nz), INTENT(IN)     :: P
+      REAL, DIMENSION(nz), INTENT(INOUT)  :: T
+      REAL, DIMENSION(nz), INTENT(INOUT)  :: theta
+      !! local value
+      REAL :: k
+      
+      k = Rd/Cp
+
+      SELECT CASE(change_option)
+        CASE(1) 
+          theta = T*(sfc_p/p)**k  
+        CASE(2)
+          T = theta*(p/sfc_p)**k
+        CASE DEFAULT
+          PRINT*, 'please select option'
+          PRINT*, '1 : from T to theta '
+          PRINT*, '2 : from theta to T '
+      END SELECT
+    END SUBROUTINE Sub_Cal_potental_Temp
 
     !!---------------------------------------------!!
     !!---------------------------------------------!!
@@ -121,13 +189,11 @@ MODULE Mod_init
                                                 mb, rr, dr
     INTEGER                                  :: ir, nbin
     REAL                                     :: rmax, &
-                                                pi,   &
                                                 r0, sigma, n0
     ! OUT
     REAL, DIMENSION(nz,column_num), INTENT(OUT) :: conc
     REAL, DIMENSION(column_num),    INTENT(OUT) :: nr
 
-    pi = 4*ATAN(1.)
     nbin=column_num
 
     rmax  = rmin*(ratio**nbin) 

@@ -9,7 +9,7 @@
   z_top           = 5000.0      !! unit = m
 /
 
-&Options
+&Dyn_options
   gamma_dry       = 0.01        !! unit = K/m
 
   dyn_option      = 3           !! 1 : Finite Diff., 2 : Finite volume, 3 : PPM
@@ -19,6 +19,13 @@
 
     dzr           = 1.05        !! You need this options, when you choose
                                 !! geomatric sequence (dz_option = 2) 
+/
+
+&Phys_options
+  dist_option        = 1           !! 1 : Log-nomal distribution, 2 : Gamma distribution
+  drop_column_num    = 100         !! 1 : Log-nomal distribution, 2 : Gamma distribution  
+  drop_1st_diameter  = 1           !! unit = um
+  drop_ratio         = 1.10        !!
 /
 
 &file_info

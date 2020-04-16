@@ -27,19 +27,25 @@ MODULE Mod_dyn_driver
     ! Local
     INTEGER                                   :: i
     REAL,    DIMENSION(nz)                    :: c 
+    REAL,    DIMENSION(nz)                    :: interp_w
     ! OUT
     REAL,    DIMENSION(nz),     INTENT(OUT)   :: next_var
 
+    Do i = 1, nz
+    interp_w(i) = (w(i-1)+w(i))/2
+    ENDDO
+    IF ( w(nz) .eq. 0.0 ) interp_W(nz) = 0.0
+
     DO i = 1, nz
 
-      c(i) = w(i)*dt/dz(i)
+      c(i) = interp_w(i)*dt/dz(i)
       IF ( c(i) .lt. 1) THEN !! CFL filter
         IF ( i .eq. 1 ) THEN
-          next_var(i) = var(i) - w(i)*dt*(var(i+1)-sfc_var)/(2*dz(i))
+          next_var(i) = var(i) - interp_w(i)*dt*(var(i+1)-sfc_var)/(2*dz(i))
         ELSE IF ( i .eq. nz ) THEN
-          next_var(i) = var(i) - w(i)*dt*(top_var-var(i-1))/(2*dz(i))
+          next_var(i) = var(i) - interp_w(i)*dt*(top_var-var(i-1))/(2*dz(i))
         ELSE
-          next_var(i) = var(i) - w(i)*dt*(var(i+1)-var(i-1))/(dz(i)+dz(i+1))
+          next_var(i) = var(i) - interp_w(i)*dt*(var(i+1)-var(i-1))/(dz(i)+dz(i+1))
         ENDIF
       ELSE
         write(*,*) " i    = ", i,"CFL  =  ", c(i)
@@ -146,12 +152,13 @@ MODULE Mod_dyn_driver
     ke=nz
     ks=1
 
+    Call Sub_cal_weights ( dz, zwt )
     CALL Sub_cal_slope ( var, dz, nz, slp )
 
     DO k = 3, nz-1
-       var_left(k) = (var(k-1)+var(k))*(7./12.)-(var(k-2)+var(k+1))*(1./12.)
-       var_right(k-1) = var_left(k)
-       ! coming out of this loop, all we need is var_left and var_right
+      var_left(k) = var(k-1) + zwt(1,k)*(var(k)-var(k-1)) &
+                       - zwt(2,k)*slp(k) + zwt(3,k)*slp(k-1)
+      var_right(k-1) = var_left(k)
     ENDDO
 
     ! boundary values  
@@ -262,10 +269,10 @@ MODULE Mod_dyn_driver
       ELSE
         next_var(k) = var(k) - dt*((flux(k+1)/dz(k+1)) - (flux(k)/dz(k)))
       ENDIF
-      ! IF ( next_var(k) .lt. 0.0 ) then
-      !   CALL FAIL_MSG("ppm problem")
-      ! ENDIF
-    ENDDO
+    IF ( next_var(k) .lt. 0.0 ) then
+      CALL FAIL_MSG("ppm problem")
+    ENDIF
+  ENDDO
   END SUBROUTINE Sub_Finite_volume_PPM
 
 
@@ -302,18 +309,43 @@ MODULE Mod_dyn_driver
     slope(1) = 2.*grad(2)*dz(1)
     slope(n) = 2.*grad(n)*dz(n)
    ! apply limiters to slope
-     if (limiters) then
-        do k = 1, n
-          if (k >= 2 .and. k <= n-1) then
+     IF (limiters) THEN
+        DO k = 1, n
+          IF (k >= 2 .and. k <= n-1) THEN
             rmin = min(var(k-1), var(k), var(k+1))
             rmax = max(var(k-1), var(k), var(k+1))
             slope(k) = sign(1.,slope(k)) *  &
                    min( abs(slope(k)), 2.*(var(k)-rmin),2.*(rmax-var(k)) )
-          else
+          ELSE
             slope(k) = 0.
-          endif
-        enddo
+          ENDIF
+        ENDDO
      ENDIF
    END SUBROUTINE Sub_cal_slope
+
+  SUBROUTINE Sub_cal_weights ( dz, zwt )
+    REAL, DIMENSION(:),    INTENT(IN)   :: dz
+    REAL, DIMENSION(0:,:), INTENT(OUT)  :: zwt
+    REAL    :: denom1, denom2, denom3, denom4, num3, num4, x, y
+    INTEGER :: k
+
+    DO k = 3, size(dz,1)-1
+      denom1 = 1.0/(dz(k-1) + dz(k))
+      denom2 = 1.0/(dz(k-2) + dz(k-1) + dz(k) + dz(k+1))
+      denom3 = 1.0/(2*dz(k-1) +   dz(k))
+      denom4 = 1.0/(  dz(k-1) + 2*dz(k))
+      num3   = dz(k-2) + dz(k-1)
+      num4   = dz(k)   + dz(k+1)
+      x      = num3*denom3 - num4*denom4
+      y      = 2.0*dz(k-1)*dz(k)               ! everything up to this point is just
+                                               ! needed to compute x1,x1,x3                      
+      zwt(0,k) = dz(k-1)*denom1                ! = 1/2 in equally spaced case
+      zwt(1,k) = zwt(0,k) + x*y*denom1*denom2  ! = 1/2 in equally spaced case
+      zwt(2,k) = dz(k-1)*num3*denom3*denom2    ! = 1/6 ''
+      zwt(3,k) = dz(k)*num4*denom4*denom2      ! = 1/6 ''
+    ENDDO
+
+
+   END SUBROUTINE Sub_cal_weights 
 
 END MODULE Mod_dyn_driver

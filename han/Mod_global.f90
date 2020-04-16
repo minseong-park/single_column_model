@@ -41,7 +41,12 @@ MODULE Mod_global
                       w,         & !! Vertical velocity
                       dz,        & !! Difference z
                       time,      & !! Difference z
-                      z            !! Height 
+                      z,         & !! Height 
+                      density,   & !! density               !! by han
+                      p,         & !! pressure              !! by han
+                      dlnp,      & !! Difference log pressure   !! by han
+                      dp,        & !! Difference pressure   !! by han
+                      poten_T      !! Potential Temperature [K] 
 
     ! For nc file 
   INTEGER                       :: ncid,                       &
@@ -82,6 +87,13 @@ MODULE Mod_global
 
     IF (.NOT. ALLOCATED(dz%dz        )) ALLOCATE(dz%dz          (nz))
     IF (.NOT. ALLOCATED(z%dz         )) ALLOCATE(z%dz           (nz))
+
+    IF (.NOT. ALLOCATED(density%dz   )) ALLOCATE(density%dz     (nz))  !! byhan
+    IF (.NOT. ALLOCATED(dp%dz        )) ALLOCATE(dp%dz          (nz))  !! byhan
+    IF (.NOT. ALLOCATED(dlnp%dz      )) ALLOCATE(dlnp%dz        (nz))  !! byhan
+    IF (.NOT. ALLOCATED(p%sfc_dt     )) ALLOCATE(p%sfc_dt       (nt))  !! byhan
+    IF (.NOT. ALLOCATED(p%dz         )) ALLOCATE(p%dz           (nz))  !! byhan
+    IF (.NOT. ALLOCATED(poten_T%dz   )) ALLOCATE(poten_T%dz     (nz))  !! byhan
 
   END SUBROUTINE Sub_allocate
  
